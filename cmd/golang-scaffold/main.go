@@ -1,7 +1,22 @@
 package main
 
-import "github.com/fdbiondi/golang-scaffold/internal/scaffold"
+import (
+	"log"
+	"os"
+
+	"github.com/fdbiondi/golang-scaffold/internal/scaffold"
+)
 
 func main() {
-	scaffold.CreateProject()
+	project, err := scaffold.CreateProject()
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(1)
+	}
+
+	err = scaffold.AddContent(project)
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(1)
+	}
 }

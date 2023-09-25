@@ -21,25 +21,68 @@ type Project struct {
 }
 
 func CreateProject() {
+func CreateProject() (Project, error) {
 	var project, err = getProjectInfo()
 	if err != nil {
-		log.Fatal(err)
-		os.Exit(1)
+		return Project{}, err
 	}
 
 	fmt.Println()
 
 	outputDir, err := getOutputDir(project)
 	if err != nil {
-		log.Fatal(err)
-		os.Exit(1)
+		return Project{}, err
 	}
 
 	err = createStructure(project, outputDir)
 	if err != nil {
-		log.Fatal(err)
-		os.Exit(1)
+		return Project{}, err
 	}
+
+	return project, nil
+}
+
+func AddContent(project Project) error {
+	/* tmp, err := template.ParseFiles("./templates/main.txt")
+	if err != nil {
+		return errors.New("error parsing file -> " + err.Error())
+	}
+
+	file, err := os.Open(getMainModFilename(project))
+	if err != nil {
+		return errors.New("error opening file -> " + err.Error())
+	}
+	defer file.Close()
+
+	config := map[string]string{
+		"internalMod": INTERNAL_MOD,
+		"modName":     project.modName,
+	}
+
+	var buf bytes.Buffer
+	if err := tmp.Execute(&buf, config); err != nil {
+        return errors.New("error creating file content -> " + err.Error())
+	}
+
+	err = os.WriteFile(getMainModFilename(project), buf.Bytes(), 0644)
+	if err != nil {
+        return errors.New("error wrinting file -> " + err.Error())
+	} */
+
+	/* modFileContent := []byte(`package
+
+	import "fmt"
+
+	func HelloWorld() {
+		fmt.Println("Hello World!")
+	}`)
+
+		err = os.WriteFile(getInternalModFilename(project), modFileContent, 0644)
+		if err != nil {
+			return err
+		} */
+
+	return nil
 }
 
 func getProjectDir() (string, error) {
@@ -110,24 +153,21 @@ func getOutputDir(project Project) (string, error) {
 }
 
 func createStructure(project Project, outputDir string) error {
-	fmt.Println("Creating project directory...")
 	if project.dir != DEFAULT_DIR {
 		if err := os.MkdirAll(project.dir, 0755); err != nil {
-			return err
+			return errors.New("failed to create project directory")
 		}
 	}
 
-	fmt.Println("Initializing project...")
 	cmd := exec.Command("go", "mod", "init", project.modName)
 	cmd.Dir = outputDir
 	if err := cmd.Run(); err != nil {
-		return err
+		return errors.New("failed to create go main module")
 	}
 
-	var internalModule = "sample"
 	var dirs = []string{
 		project.dir + "/bin",
-		project.dir + "/internal/" + internalModule,
+		project.dir + "/internal/" + INTERNAL_MOD,
 		project.dir + "/src/" + project.name,
 		project.dir + "/tests",
 	}
@@ -138,17 +178,18 @@ func createStructure(project Project, outputDir string) error {
 		}
 	}
 
-	fmt.Println("Creating main.go file...")
-	_, err := os.Create(fmt.Sprintf("%s/src/%s/main.go", project.dir, project.name))
+	mainFile, err := os.Create(getMainModFilename(project))
 	if err != nil {
-		return err
+		return errors.New("failed to create main.go file")
 	}
+	defer mainFile.Close()
 
-	fmt.Printf("Creating %s module...\n", internalModule)
-	_, err = os.Create(fmt.Sprintf("%[1]s/internal/%[2]s/%[2]s.go", project.dir, internalModule))
+	filename := getInternalModFilename(project)
+	modFile, err := os.Create(filename)
 	if err != nil {
-		return err
+		return errors.New("failed to create internal module")
 	}
+	defer modFile.Close()
 
 	return nil
 }
