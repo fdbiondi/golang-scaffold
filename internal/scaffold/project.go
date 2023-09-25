@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 type Project struct {
@@ -15,25 +16,27 @@ type Project struct {
 
 func getProjectDir() (string, error) {
 	flag.Parse()
+	path := flag.Arg(0)
 
-	projectDir := flag.Arg(0)
-	if projectDir == "" {
-		projectDir = DEFAULT_DIR
-
-	} else if _, err := os.Stat(projectDir); !os.IsNotExist(err) {
-		return "", fmt.Errorf("a directory named '%s' already exists", projectDir)
+	projectPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
 	}
 
-	if _, err := os.Stat(projectDir + "/go.mod"); !os.IsNotExist(err) {
-		pwd, err := os.Getwd()
-		if err != nil {
-			pwd = projectDir
-		}
-
-		return "", fmt.Errorf("go module already exists on '%s'", pwd)
+	currentPath, err := os.Getwd()
+	if err != nil {
+		return "", err
 	}
 
-	return projectDir, nil
+	var dir string
+
+	if path == DEFAULT_DIR {
+		dir = currentPath
+	} else {
+		dir = projectPath
+	}
+
+	return dir, nil
 }
 
 func getProjectInfo() (Project, error) {

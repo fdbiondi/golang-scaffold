@@ -14,7 +14,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = scaffold.AddContent(project)
+	err = scaffold.AddProjectContent(project)
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)

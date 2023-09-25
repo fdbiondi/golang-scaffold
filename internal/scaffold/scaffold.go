@@ -2,7 +2,6 @@ package scaffold
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 )
@@ -13,14 +12,12 @@ func CreateProject() (Project, error) {
 		return Project{}, err
 	}
 
-	fmt.Println()
-
-	outputDir, err := getOutputDir(project)
+	err = createProjectDirectory(project)
 	if err != nil {
 		return Project{}, err
 	}
 
-	err = createStructure(project, outputDir)
+	err = createProjectStructure(project)
 	if err != nil {
 		return Project{}, err
 	}
@@ -28,7 +25,7 @@ func CreateProject() (Project, error) {
 	return project, nil
 }
 
-func AddContent(project Project) error {
+func AddProjectContent(project Project) error {
 	FromTemplateToFile("./templates/main.txt", getMainModFilename(project), map[string]string{
 		"internalMod": INTERNAL_MOD,
 		"modName":     project.modName,
@@ -41,16 +38,28 @@ func AddContent(project Project) error {
 	return nil
 }
 
-
-func createStructure(project Project, outputDir string) error {
-	if project.dir != DEFAULT_DIR {
+func createProjectDirectory(project Project) error {
+	if _, err := os.Stat(project.dir); os.IsNotExist(err) {
 		if err := os.MkdirAll(project.dir, 0755); err != nil {
 			return errors.New("failed to create project directory")
 		}
 	}
 
+	files, err := os.ReadDir(project.dir)
+	if err != nil {
+		return errors.New("bad path to project directory")
+	}
+
+	if len(files) > 0 {
+		return errors.New("directory is not empty")
+	}
+
+	return nil
+}
+
+func createProjectStructure(project Project) error {
 	cmd := exec.Command("go", "mod", "init", project.modName)
-	cmd.Dir = outputDir
+	cmd.Dir = project.dir
 	if err := cmd.Run(); err != nil {
 		return errors.New("failed to create go main module")
 	}
@@ -64,7 +73,7 @@ func createStructure(project Project, outputDir string) error {
 
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			return err
+			return errors.New("failed to create directory " + dir + " : " + err.Error())
 		}
 	}
 
