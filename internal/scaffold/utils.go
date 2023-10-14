@@ -5,7 +5,7 @@ import (
 )
 
 func getMainModFilename(project Project) string {
-	return fmt.Sprintf("%s/src/%s/main.go", project.dir, project.name)
+	return fmt.Sprintf("%s/cmd/%s/main.go", project.dir, project.name)
 }
 
 func getInternalModFilename(project Project) string {

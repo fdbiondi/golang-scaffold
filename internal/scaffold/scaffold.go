@@ -67,7 +67,7 @@ func createProjectStructure(project Project) error {
 	var dirs = []string{
 		project.dir + "/bin",
 		project.dir + "/internal/" + INTERNAL_MOD,
-		project.dir + "/src/" + project.name,
+		project.dir + "/cmd/" + project.name,
 		project.dir + "/tests",
 	}
 
