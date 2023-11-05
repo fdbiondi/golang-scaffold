@@ -2,6 +2,7 @@ package scaffold
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 )
@@ -39,26 +40,19 @@ func (project Project) CreateStructure() error {
 		return errors.New("failed to create go main module")
 	}
 
-	var dirs = []string{
-		project.dir + "/bin",
-		project.dir + "/internal/" + INTERNAL_MOD,
-		project.dir + "/cmd/" + project.name,
-		project.dir + "/tests",
-	}
-
-	for _, dir := range dirs {
+	for _, dir := range project.getDirs() {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return errors.New("failed to create directory " + dir + " : " + err.Error())
 		}
 	}
 
-	mainFile, err := os.Create(getMainModFilename(project))
+	mainFile, err := os.Create(project.getMainModFilename())
 	if err != nil {
 		return errors.New("failed to create main.go file")
 	}
 	defer mainFile.Close()
 
-	filename := getInternalModFilename(project)
+	filename := project.getInternalModFilename()
 	modFile, err := os.Create(filename)
 	if err != nil {
 		return errors.New("failed to create internal module")
@@ -69,14 +63,31 @@ func (project Project) CreateStructure() error {
 }
 
 func (project Project) AddContent() error {
-	fromTemplateToFile("./templates/main.txt", getMainModFilename(project), map[string]string{
+	fromTemplateToFile("./templates/main.txt", project.getMainModFilename(), map[string]string{
 		"internalMod": INTERNAL_MOD,
 		"modName":     project.modName,
 	})
 
-	fromTemplateToFile("./templates/mod.txt", getInternalModFilename(project), map[string]string{
+	fromTemplateToFile("./templates/mod.txt", project.getInternalModFilename(), map[string]string{
 		"internalMod": INTERNAL_MOD,
 	})
 
 	return nil
+}
+
+func (project Project) getDirs() []string {
+	return []string{
+		project.dir + "/bin",
+		project.dir + "/internal/" + INTERNAL_MOD,
+		project.dir + "/cmd/" + project.name,
+		project.dir + "/tests",
+	}
+}
+
+func (project Project) getMainModFilename() string {
+	return fmt.Sprintf("%s/cmd/%s/main.go", project.dir, project.name)
+}
+
+func (project Project) getInternalModFilename() string {
+	return fmt.Sprintf("%[1]s/internal/%[2]s/%[2]s.go", project.dir, INTERNAL_MOD)
 }

@@ -24,14 +24,6 @@ func NewProject(input *input.Input) Project {
 	}
 }
 
-func getMainModFilename(project Project) string {
-	return fmt.Sprintf("%s/cmd/%s/main.go", project.dir, project.name)
-}
-
-func getInternalModFilename(project Project) string {
-	return fmt.Sprintf("%[1]s/internal/%[2]s/%[2]s.go", project.dir, INTERNAL_MOD)
-}
-
 func fromTemplateToFile(templateName string, outputFilename string, values map[string]string) error {
 	tmp, err := template.ParseFiles(templateName)
 	if err != nil {
