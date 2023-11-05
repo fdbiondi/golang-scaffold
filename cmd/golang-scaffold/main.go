@@ -4,17 +4,32 @@ import (
 	"log"
 	"os"
 
+	"github.com/fdbiondi/golang-scaffold/internal/input"
 	"github.com/fdbiondi/golang-scaffold/internal/scaffold"
 )
 
 func main() {
-	project, err := scaffold.CreateProject()
+	userInput, err := input.GetUserInput()
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)
 	}
 
-	err = scaffold.AddProjectContent(project)
+	project := scaffold.NewProject(userInput)
+
+	err = project.CreateDirectory()
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(1)
+	}
+
+	err = project.CreateStructure()
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(1)
+	}
+
+	err = project.AddContent()
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)

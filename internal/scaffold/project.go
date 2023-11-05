@@ -1,10 +1,9 @@
 package scaffold
 
 import (
-	"flag"
-	"fmt"
+	"errors"
 	"os"
-	"path/filepath"
+	"os/exec"
 )
 
 type Project struct {
@@ -14,56 +13,70 @@ type Project struct {
 	modName   string
 }
 
-func getProjectDir() (string, error) {
-	flag.Parse()
-	path := flag.Arg(0)
+func (project Project) CreateDirectory() error {
+	if _, err := os.Stat(project.dir); os.IsNotExist(err) {
+		if err := os.MkdirAll(project.dir, 0755); err != nil {
+			return errors.New("failed to create project directory")
+		}
+	}
 
-	projectPath, err := filepath.Abs(path)
+	files, err := os.ReadDir(project.dir)
 	if err != nil {
-		return "", err
+		return errors.New("bad path to project directory")
 	}
 
-	currentPath, err := os.Getwd()
-	if err != nil {
-		return "", err
+	if len(files) > 0 {
+		return errors.New("directory is not empty")
 	}
 
-	var dir string
-
-	if path == DEFAULT_DIR {
-		dir = currentPath
-	} else {
-		dir = projectPath
-	}
-
-	return dir, nil
+	return nil
 }
 
-func getProjectInfo() (Project, error) {
-	projectDir, err := getProjectDir()
+func (project Project) CreateStructure() error {
+	cmd := exec.Command("go", "mod", "init", project.modName)
+	cmd.Dir = project.dir
+	if err := cmd.Run(); err != nil {
+		return errors.New("failed to create go main module")
+	}
+
+	var dirs = []string{
+		project.dir + "/bin",
+		project.dir + "/internal/" + INTERNAL_MOD,
+		project.dir + "/cmd/" + project.name,
+		project.dir + "/tests",
+	}
+
+	for _, dir := range dirs {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return errors.New("failed to create directory " + dir + " : " + err.Error())
+		}
+	}
+
+	mainFile, err := os.Create(getMainModFilename(project))
 	if err != nil {
-		return Project{}, err
+		return errors.New("failed to create main.go file")
 	}
+	defer mainFile.Close()
 
-	var repoOwner = ""
-	var projectName = ""
-
-	for repoOwner == "" {
-		fmt.Print("Enter repository owner: ")
-		fmt.Scanln(&repoOwner)
+	filename := getInternalModFilename(project)
+	modFile, err := os.Create(filename)
+	if err != nil {
+		return errors.New("failed to create internal module")
 	}
+	defer modFile.Close()
 
-	for projectName == "" {
-		fmt.Print("Enter project name: ")
-		fmt.Scanln(&projectName)
-	}
+	return nil
+}
 
-	modName := fmt.Sprintf("%s/%s/%s", DEFAULT_REMOTE, repoOwner, projectName)
+func (project Project) AddContent() error {
+	fromTemplateToFile("./templates/main.txt", getMainModFilename(project), map[string]string{
+		"internalMod": INTERNAL_MOD,
+		"modName":     project.modName,
+	})
 
-	return Project{
-		dir:       projectDir,
-		repoOwner: repoOwner,
-		name:      projectName,
-		modName:   modName,
-	}, nil
+	fromTemplateToFile("./templates/mod.txt", getInternalModFilename(project), map[string]string{
+		"internalMod": INTERNAL_MOD,
+	})
+
+	return nil
 }

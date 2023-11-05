@@ -1,94 +1,58 @@
 package scaffold
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"os"
-	"os/exec"
+	"text/template"
+
+	"github.com/fdbiondi/golang-scaffold/internal/input"
 )
 
-func CreateProject() (Project, error) {
-	var project, err = getProjectInfo()
-	if err != nil {
-		return Project{}, err
-	}
+const (
+	DEFAULT_REMOTE = "github.com"
+	INTERNAL_MOD   = "sample"
+)
 
-	err = createProjectDirectory(project)
-	if err != nil {
-		return Project{}, err
+func NewProject(input *input.Input) Project {
+	return Project{
+		dir:       input.Dir,
+		repoOwner: input.Owner,
+		name:      input.Project,
+		modName:   fmt.Sprintf("%s/%s/%s", DEFAULT_REMOTE, input.Owner, input.Project),
 	}
-
-	err = createProjectStructure(project)
-	if err != nil {
-		return Project{}, err
-	}
-
-	return project, nil
 }
 
-func AddProjectContent(project Project) error {
-	FromTemplateToFile("./templates/main.txt", getMainModFilename(project), map[string]string{
-		"internalMod": INTERNAL_MOD,
-		"modName":     project.modName,
-	})
-
-	FromTemplateToFile("./templates/mod.txt", getInternalModFilename(project), map[string]string{
-		"internalMod": INTERNAL_MOD,
-	})
-
-	return nil
+func getMainModFilename(project Project) string {
+	return fmt.Sprintf("%s/cmd/%s/main.go", project.dir, project.name)
 }
 
-func createProjectDirectory(project Project) error {
-	if _, err := os.Stat(project.dir); os.IsNotExist(err) {
-		if err := os.MkdirAll(project.dir, 0755); err != nil {
-			return errors.New("failed to create project directory")
-		}
-	}
-
-	files, err := os.ReadDir(project.dir)
-	if err != nil {
-		return errors.New("bad path to project directory")
-	}
-
-	if len(files) > 0 {
-		return errors.New("directory is not empty")
-	}
-
-	return nil
+func getInternalModFilename(project Project) string {
+	return fmt.Sprintf("%[1]s/internal/%[2]s/%[2]s.go", project.dir, INTERNAL_MOD)
 }
 
-func createProjectStructure(project Project) error {
-	cmd := exec.Command("go", "mod", "init", project.modName)
-	cmd.Dir = project.dir
-	if err := cmd.Run(); err != nil {
-		return errors.New("failed to create go main module")
-	}
-
-	var dirs = []string{
-		project.dir + "/bin",
-		project.dir + "/internal/" + INTERNAL_MOD,
-		project.dir + "/cmd/" + project.name,
-		project.dir + "/tests",
-	}
-
-	for _, dir := range dirs {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return errors.New("failed to create directory " + dir + " : " + err.Error())
-		}
-	}
-
-	mainFile, err := os.Create(getMainModFilename(project))
+func fromTemplateToFile(templateName string, outputFilename string, values map[string]string) error {
+	tmp, err := template.ParseFiles(templateName)
 	if err != nil {
-		return errors.New("failed to create main.go file")
+		return errors.New("error parsing file -> " + err.Error())
 	}
-	defer mainFile.Close()
 
-	filename := getInternalModFilename(project)
-	modFile, err := os.Create(filename)
+	file, err := os.Open(outputFilename)
 	if err != nil {
-		return errors.New("failed to create internal module")
+		return errors.New("error opening file -> " + err.Error())
 	}
-	defer modFile.Close()
+	defer file.Close()
+
+	var buf bytes.Buffer
+	if err := tmp.Execute(&buf, values); err != nil {
+		return errors.New("error creating file content -> " + err.Error())
+	}
+
+	err = os.WriteFile(outputFilename, buf.Bytes(), 0644)
+	if err != nil {
+		return errors.New("error wrinting file -> " + err.Error())
+	}
 
 	return nil
 }
